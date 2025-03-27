@@ -1,4 +1,5 @@
 from Utils.Parameters import *
+from Utils.GridWorld import *
 
 import numpy as np
 import tensorflow as tf
@@ -9,7 +10,7 @@ from collections import deque
 import random
 
 
-class DQNAgent:
+class DDQNAgent:
     def __init__(self):
         """Agent DQN use neural network to train"""
         self.state_size = STATE_SIZE
@@ -17,6 +18,8 @@ class DQNAgent:
         self.memory = deque(maxlen=MEMORY_SIZE)
         self.epsilon = EPSILON
         self.model = self.build_model()
+        self.target_model = self.build_model()
+        self.update_target_model()
 
     def build_model(self):
         """Build a neural network
@@ -42,6 +45,10 @@ class DQNAgent:
         model.compile(loss="mse", optimizer=Adam(learning_rate=LEARNING_RATE))
 
         return model
+
+    def update_target_model(self):
+        """Copy weights from the main model to the target model."""
+        self.target_model.set_weights(self.model.get_weights())
 
     def remember(
         self,
@@ -73,7 +80,7 @@ class DQNAgent:
                 target[action] = reward
             else:
                 target[action] = reward + GAMMA * np.max(
-                    self.model.predict(np.array([next_state]), verbose=0)[0]
+                    self.target_model.predict(np.array([next_state]), verbose=0)[0]
                 )
 
             self.model.fit(np.array([state]), np.array([target]), epochs=1, verbose=0)
@@ -81,7 +88,7 @@ class DQNAgent:
         if self.epsilon > EPSILON_MIN:
             self.epsilon *= EPSILON_DECAY
 
-    def train(self, episodes: int, grid_world):
+    def train(self, episodes: int, grid_world: GridWorld, period=10):
         """Train the agent using the DDQN algorithm."""
         for ep in range(episodes):
             state = grid_world.reset()
@@ -104,6 +111,8 @@ class DQNAgent:
                     break
 
             self.replay()
+            if ep % period == 0:
+                self.update_target_model()
 
             print(f"Episode {ep+1}/{episodes} :")
             print(f"\tScore: {total_reward}")
