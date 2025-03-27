@@ -1,3 +1,5 @@
 *.tex
 *.log
 *.gz
+devoirculture.pdf
+.data.minted
